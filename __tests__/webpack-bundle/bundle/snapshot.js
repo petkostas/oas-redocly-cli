@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`E2E webpack-bundle test bundle check 1`] = `
+exports[`webpack-bundle test bundle check 1`] = `
 
 Woohoo! Your OpenAPI definitions are valid. 🎉
 

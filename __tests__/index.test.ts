@@ -1,9 +1,9 @@
-import { readdirSync, statSync, existsSync, readFileSync } from 'fs';
+import { readdirSync, statSync, existsSync } from 'fs';
 import { spawnSync } from 'child_process';
 import { join } from 'path';
 //@ts-ignore
-import { toMatchSpecificSnapshot, addSerializer } from './specific-snapshot';
-import { parseYaml } from '../packages/core/src/utils'; // not able to import from @redocly/openapi-core
+import { toMatchSpecificSnapshot } from './specific-snapshot';
+import { getCommandOutput, getEntrypoints, callSerializer } from './helpers';
 
 expect.extend({
   toMatchExtendedSpecificSnapshot(received, snapshotFile) {
@@ -11,34 +11,7 @@ expect.extend({
   },
 });
 
-addSerializer({
-  test: (val: any) => typeof val === 'string',
-  print: (v: any) => cleanUpVersion(v),
-});
-
-function cleanUpVersion(str: string): string {
-  return str.replace(/"version":\s(\".*\")*/g, '"version": "<version>"');
-}
-
-function getEntrypoints(folderPath: string) {
-  const redoclyYamlFile = readFileSync(join(folderPath, ".redocly.yaml"), "utf8");
-  const redoclyYaml = parseYaml(redoclyYamlFile) as { apis: Record<string, string>; };
-  return Object.keys(redoclyYaml.apis);
-}
-
-function getCommandOutput(params: string[], folderPath: string) {
-  const result = spawnSync('ts-node', params, {
-    cwd: folderPath,
-    env: {
-      ...process.env,
-      NODE_ENV: 'test',
-      NO_COLOR: 'TRUE',
-    },
-  });
-  const out = result.stdout.toString('utf-8');
-  const err = result.stderr.toString('utf-8');
-  return `${out}\n${err}`;
-}
+callSerializer();
 
 describe('E2E', () => {
   describe('lint', () => {
@@ -49,11 +22,7 @@ describe('E2E', () => {
       if (statSync(testPath).isFile()) continue;
       if (!existsSync(join(testPath, '.redocly.yaml'))) continue;
 
-      const args = [
-        '--transpile-only',
-        '../../../packages/cli/src/index.ts',
-        'lint'
-      ];
+      const args = ['--transpile-only', '../../../packages/cli/src/index.ts', 'lint'];
       it(file, () => {
         const r = spawnSync('ts-node', args, {
           cwd: testPath,
@@ -92,7 +61,7 @@ describe('E2E', () => {
         '../../../packages/cli/src/index.ts',
         'split',
         '../../../__tests__/split/oas2/openapi.yaml',
-        '--outDir=output'
+        '--outDir=output',
       ];
       const result = getCommandOutput(args, folderPath);
       (<any>expect(result)).toMatchSpecificSnapshot(join(folderPath, 'snapshot.js'));
@@ -112,7 +81,6 @@ describe('E2E', () => {
       (<any>expect(result)).toMatchSpecificSnapshot(join(folderPath, 'snapshot.js'));
     });
   });
-
 
   describe('join', () => {
     const args = [
@@ -157,12 +125,9 @@ describe('E2E', () => {
   });
 
   describe('bundle', () => {
-    const excludeFolders = [
-      'bundle-remove-unused-components',
-      'bundle-lint-format',
-    ];
+    const excludeFolders = ['bundle-remove-unused-components', 'bundle-lint-format'];
     const folderPath = join(__dirname, 'bundle');
-    const contents = readdirSync(folderPath).filter(folder => !excludeFolders.includes(folder));
+    const contents = readdirSync(folderPath).filter((folder) => !excludeFolders.includes(folder));
 
     for (const file of contents) {
       const testPath = join(folderPath, file);
@@ -177,7 +142,7 @@ describe('E2E', () => {
         '--max-problems=1',
         'bundle',
         '--format=stylish',
-        ...entryPoints
+        ...entryPoints,
       ];
 
       it(file, () => {
@@ -203,14 +168,14 @@ describe('E2E', () => {
     let folderPath: string;
 
     beforeAll(() => {
-      folderPath = join(__dirname, "bundle/bundle-lint-format");
+      folderPath = join(__dirname, 'bundle/bundle-lint-format');
       const entryPoints = getEntrypoints(folderPath);
       args = [
-        "../../../packages/cli/src/index.ts",
-        "--max-problems=1",
-        "-o=/tmp/null",
-        "bundle",
-        "--lint",
+        '../../../packages/cli/src/index.ts',
+        '--max-problems=1',
+        '-o=/tmp/null',
+        'bundle',
+        '--lint',
         ...entryPoints,
       ];
     });
@@ -241,31 +206,6 @@ describe('E2E', () => {
       ];
       const result = getCommandOutput(args, folderPath);
       (<any>expect(result)).toMatchSpecificSnapshot(join(folderPath, 'remove-unused-components-snapshot.js'));
-    });
-  });
-
-  describe('webpack-bundle test', () => {
-    test('bundle check', () => {
-      const folderPath = join(__dirname, 'webpack-bundle/bundle');
-      const enryPoint = getEntrypoints(folderPath);
-      const args = [
-        '../../../dist/bundle.js',
-        '--max-problems=1',
-        '-o=/tmp/null',
-        'bundle',
-        '--lint',
-        ...enryPoint,
-      ];
-      const result = getCommandOutput(args, folderPath);
-      (<any>expect(result)).toMatchSpecificSnapshot(join(folderPath, 'snapshot.js'));
-    });
-
-    test('lint check', () => {
-      const folderPath = join(__dirname, 'webpack-bundle/lint');
-      const enryPoint = getEntrypoints(folderPath);
-      const args = ['--transpile-only', '../../../dist/bundle.js', 'lint', ...enryPoint];
-      const result = getCommandOutput(args, folderPath);
-      (<any>expect(result)).toMatchSpecificSnapshot(join(folderPath, 'snapshot.js'));
     });
   });
 });

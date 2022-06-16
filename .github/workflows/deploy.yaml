@@ -49,6 +49,9 @@ jobs:
 
     - name: Bundle into single file
       run: npm run webpack-bundle
+      
+    - name: Bundle e2e smoke
+      run: npm run webpack-bundle-e2e
 
     - name: Upload to AWS S3 bucket
       run: npm run upload
