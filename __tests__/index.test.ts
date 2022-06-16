@@ -243,4 +243,29 @@ describe('E2E', () => {
       (<any>expect(result)).toMatchSpecificSnapshot(join(folderPath, 'remove-unused-components-snapshot.js'));
     });
   });
+
+  describe('webpack-bundle test', () => {
+    test('bundle check', () => {
+      const folderPath = join(__dirname, 'webpack-bundle/bundle');
+      const enryPoint = getEntrypoints(folderPath);
+      const args = [
+        '../../../dist/bundle.js',
+        '--max-problems=1',
+        '-o=/tmp/null',
+        'bundle',
+        '--lint',
+        ...enryPoint,
+      ];
+      const result = getCommandOutput(args, folderPath);
+      (<any>expect(result)).toMatchSpecificSnapshot(join(folderPath, 'snapshot.js'));
+    });
+
+    test('lint check', () => {
+      const folderPath = join(__dirname, 'webpack-bundle/lint');
+      const enryPoint = getEntrypoints(folderPath);
+      const args = ['--transpile-only', '../../../dist/bundle.js', 'lint', ...enryPoint];
+      const result = getCommandOutput(args, folderPath);
+      (<any>expect(result)).toMatchSpecificSnapshot(join(folderPath, 'snapshot.js'));
+    });
+  });
 });
